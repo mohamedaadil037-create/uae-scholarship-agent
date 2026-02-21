@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import tempfile
 # --- LIBRARIES ---
+from fpdf import FPDF
 from langchain_groq import ChatGroq
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.document_loaders import PyPDFLoader, ArxivLoader
@@ -20,112 +21,55 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# 2. PROFESSIONAL "NEON GLASS" UI STYLING
+# 2. CONTENT-ONLY "NEON GLASS" STYLING (NATIVE LAYOUT)
 st.markdown("""
     <style>
-    /* Import Modern Font */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-
-    /* Global Theme Overrides */
+    /* Global Theme Variables */
     :root {
         --primary-neon: #00F2FF;
         --secondary-neon: #BD00FF;
-        --bg-dark: #050A14;
-        --glass-bg: rgba(255, 255, 255, 0.05);
-        --glass-border: rgba(0, 242, 255, 0.3);
-        --text-light: #EAEAEA;
     }
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-        color: var(--text-light);
-    }
-
-    /* Main Background */
-    .stApp {
-        background: radial-gradient(ellipse at top, #131A2A, var(--bg-dark));
-    }
-
-    /* Glass Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(5, 10, 20, 0.85);
-        backdrop-filter: blur(12px);
-        border-right: 1px solid var(--glass-border);
-    }
-
-    /* Headers & Titles */
-    h1, h2, h3 {
-        color: white !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-    }
+    /* Gradient Titles */
     h1 {
         background: linear-gradient(90deg, var(--primary-neon), white);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
     }
 
-    /* Custom "Glass Card" for Results */
+    /* Custom "Glass Card" for AI Results ONLY */
     .glass-card {
-        background: var(--glass-bg);
+        background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
-        border: 1px solid var(--glass-border);
+        border: 1px solid rgba(0, 242, 255, 0.3);
         border-radius: 16px;
         padding: 25px;
         margin-top: 20px;
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .glass-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 40px rgba(0, 242, 255, 0.2);
-        border-color: var(--primary-neon);
     }
 
-    /* Neon Buttons */
+    /* Neon Outlined Buttons */
     .stButton > button {
-        background: transparent;
         border: 1px solid var(--primary-neon);
         color: var(--primary-neon);
+        background: transparent;
         border-radius: 8px;
-        font-weight: 600;
         transition: all 0.3s ease;
     }
     .stButton > button:hover {
-        background: rgba(0, 242, 255, 0.1);
+        border: 1px solid var(--primary-neon);
         box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+        color: white;
     }
+
     /* Primary Action Button (The Big One) */
     button[kind="primary"] {
         background: linear-gradient(135deg, var(--primary-neon), var(--secondary-neon)) !important;
+        color: black !important;
         border: none !important;
-        color: #000 !important;
-        font-weight: 800 !important;
-        box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+        font-weight: bold !important;
     }
-    button[kind="primary"]:hover {
-        box-shadow: 0 0 30px rgba(0, 242, 255, 0.6);
-        transform: scale(1.02);
-    }
-
-    /* Input Fields */
-    .stTextInput > div > div > input {
-        background-color: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        color: white;
-        border-radius: 8px;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: var(--primary-neon);
-        box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
-    }
-
-    /* Hide Streamlit Branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .viewerBadge_container__1QSob {display: none;}
 
     /* Developer Badge Footer */
     .dev-footer {
@@ -139,13 +83,10 @@ st.markdown("""
         border-radius: 20px;
         font-size: 12px;
         color: var(--primary-neon);
-        display: flex;
-        align-items: center;
-        z-index: 999;
+        z-index: 9999;
     }
-    .dev-icon { margin-right: 8px; font-size: 16px; }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # 3. API KEYS (SECURE FETCH)
 # This looks for keys in .streamlit/secrets.toml (Local) or Streamlit Cloud Secrets (Online)
@@ -157,7 +98,10 @@ if "TAVILY_API_KEY" in st.secrets:
 try:
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.3)
     search_tool = TavilySearchResults(max_results=5)
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    model_kwargs={'device': 'cpu'}
+)
 except Exception as e:
     st.error(f"System Initialization Error: {e}. Check your API Keys.")
 
@@ -177,6 +121,17 @@ with st.sidebar:
     st.divider()
     st.info("💡 **Strategy:** Identify faculty -> Find research gaps -> Practice defense.")
     
+    st.sidebar.markdown("---") # Creates a subtle dividing line
+    st.sidebar.markdown("""
+    <div style="text-align: center; padding: 15px; background: linear-gradient(145deg, rgba(20,20,20,0.8), rgba(40,40,40,0.8)); border-radius: 12px; border: 1px solid rgba(0, 255, 204, 0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px;">
+        <h4 style="margin-top: 0px; margin-bottom: 5px; color: #00ffcc; font-family: 'Courier New', Courier, monospace; letter-spacing: 1px;">👨‍💻 THE ARCHITECT</h4>
+        <p style="font-size: 14px; color: #ffffff; margin-bottom: 3px; font-weight: bold;">Aadil Mohamed</p>
+        <p style="font-size: 11px; color: #aaaaaa; margin-bottom: 8px;">B.Tech AI & Data Science (Final Year)</p>
+        <div style="background-color: rgba(0, 255, 204, 0.1); padding: 5px; border-radius: 5px;">
+            <p style="font-size: 10px; color: #00ffcc; margin: 0;">Specialization: Autonomous Agents & ML Models</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("""
         <div class="dev-footer">
             <span class="dev-icon">🛡️</span> Verified Builder: <b>Aadil</b>
@@ -273,7 +228,38 @@ elif mode == "📄 Research Gap Finder":
                 
                 # Display Pitch in Glass Card
                 st.markdown(f'<div class="glass-card">{final_response.content}</div>', unsafe_allow_html=True)
+                # --- PDF GENERATION ENGINE ---
+                # 1. Initialize the PDF document
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=11)
                 
+                # 2. Add a professional header
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(200, 10, txt="Research Innovation Dossier", ln=1, align="C")
+                pdf.set_font("Arial", 'I', 10)
+                pdf.cell(200, 10, txt="Generated autonomously by Aadil's Research OS", ln=1, align="C")
+                pdf.ln(10) # Add a line break
+                
+                # 3. Clean the AI text (removes emojis to prevent FPDF crashing)
+                pdf.set_font("Arial", size=11)
+                clean_text = final_response.content.encode('latin-1', 'ignore').decode('latin-1')
+                
+                # 4. Write the text into the PDF
+                pdf.multi_cell(0, 8, txt=clean_text)
+                
+                # 5. Convert to binary bytes for Streamlit Download
+                pdf_bytes = pdf.output(dest="S").encode("latin-1")
+                
+                # 6. Create the Neon Download Button
+                st.download_button(
+                    label="📄 Download Innovation Dossier (PDF)",
+                    data=pdf_bytes,
+                    file_name="Aadil_Research_Dossier.pdf",
+                    mime="application/pdf",
+                    type="primary"
+                )
+
                 # Email Draft
                 st.divider()
                 st.subheader("📨 Outreach Protocol Draft")

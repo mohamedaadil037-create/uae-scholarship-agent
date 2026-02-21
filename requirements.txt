@@ -15,3 +15,4 @@ arxiv
 pymupdf
 sentence-transformers
 huggingface-hub
+fpdf==1.7.2 

@@ -185,13 +185,23 @@ elif mode == "📄 Research Gap Finder":
         if source_type == "ArXiv Database (Auto)":
             paper_topic = st.text_input("Paper Query / Author:", "Sanjay Singh Manipal Autonomous Vehicles")
             if st.button("📥 Fetch Data Stream", use_container_width=True):
-                with st.spinner("Connecting to ArXiv API..."):
+                with st.spinner("Deploying Tavily Stealth Agent to bypass firewalls..."):
                     try:
-                        loader = ArxivLoader(query=paper_topic, load_max_docs=1)
-                        st.session_state.loaded_docs = loader.load()
-                        st.session_state.paper_title = st.session_state.loaded_docs[0].metadata['Title']
-                        st.success(f"Acquired: {st.session_state.paper_title}")
-                    except Exception as e: st.error(f"Data Fetch Error: {e}")
+                        # 1. Use Tavily to autonomously scrape the paper details from the web
+                        stealth_query = f"site:arxiv.org {paper_topic} abstract methodology limitations"
+                        raw_data = search_tool.invoke(stealth_query)
+                        
+                        # 2. Extract the intelligence into a single text block
+                        extracted_text = "\n\n".join([result["content"] for result in raw_data])
+                        
+                        # 3. Format it into the exact structure your RAG engine needs
+                        from langchain_core.documents import Document
+                        st.session_state.loaded_docs = [Document(page_content=extracted_text, metadata={"Title": paper_topic})]
+                        st.session_state.paper_title = paper_topic
+                        
+                        st.success(f"Target Acquired via Stealth Mode: {st.session_state.paper_title}")
+                    except Exception as e: 
+                        st.error(f"Stealth Fetch Failed: {e}")
         else:
             uploaded_file = st.file_uploader("Upload PDF Document", type="pdf")
             if uploaded_file:
